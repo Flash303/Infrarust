@@ -93,3 +93,5 @@ motds:
     online_players: 0
     text: "§c§lServer Unreachable§r\n§7 Please try again later"
     favicon: ""
+  # Message sent to clients when upstream server is unreachable during login
+  unreachable_disconnect: "The server is currently unreachable. Please try again later."

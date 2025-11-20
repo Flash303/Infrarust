@@ -950,6 +950,7 @@ impl Gateway {
             proxy_mode: tmp_server.config.proxy_mode.unwrap_or_default(),
             proxied_domain: Some(domain),
             initial_config: server,
+            disconnect_message: None,
         })
     }
 
@@ -981,12 +982,35 @@ impl Gateway {
                     server_addr: Some(req.client_addr),
                     proxy_mode: tmp_server.config.proxy_mode.unwrap_or_default(),
                     proxied_domain: Some(req.domain.clone()),
-                    initial_config: server,
+                    initial_config: server.clone(),
+                    disconnect_message: None,
                 })
             }
             Err(e) => {
                 debug!("Failed to connect to backend server: {}", e);
-                Err(e)
+                // When the upstream is unreachable during login, prepare disconnect message
+                // Get the configured disconnect message or use a default
+                let disconnect_msg = server
+                    .motds
+                    .unreachable_disconnect
+                    .clone()
+                    .unwrap_or_else(|| self.shared.config().motds.unreachable_disconnect.clone().unwrap_or_else(|| {
+                        "Server is currently unreachable. Please try again later.".to_string()
+                    }));
+                
+                // Return an error ServerResponse with the disconnect message
+                // This will be sent through the oneshot channel to the server actor
+                Ok(ServerResponse {
+                    server_conn: None,
+                    status_response: None,
+                    send_proxy_protocol: use_proxy_protocol,
+                    read_packets: vec![],
+                    server_addr: None,
+                    proxy_mode: tmp_server.config.proxy_mode.unwrap_or_default(),
+                    proxied_domain: Some(req.domain.clone()),
+                    initial_config: server,
+                    disconnect_message: Some(disconnect_msg),
+                })
             }
         }
     }

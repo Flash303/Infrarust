@@ -172,6 +172,8 @@ pub struct ServerMotds {
     pub crashed: Option<MotdConfig>,
     pub shutting_down: Option<MotdConfig>,
     pub unable_status: Option<MotdConfig>,
+    /// Disconnect message to send when the upstream server is unreachable during login
+    pub unreachable_disconnect: Option<String>,
 }
 
 //TODO: Move this in a motd_Crate

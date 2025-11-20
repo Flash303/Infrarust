@@ -4,3 +4,7 @@ addresses:
   - "172.19.0.4:25565"
 sendProxyProtocol: true
 proxyMode: passthrough
+
+# Optional: Custom message when upstream server is unreachable
+motds:
+  unreachable_disconnect: "§cConnection Failed§r\n§7The Passthrough server is currently offline."

@@ -135,6 +135,10 @@ impl InfrarustConfig {
             self.motds.unreachable = other.motds.unreachable;
         }
 
+        if other.motds.unreachable_disconnect.is_some() {
+            self.motds.unreachable_disconnect = other.motds.unreachable_disconnect;
+        }
+
         if other.telemetry.enabled {
             self.telemetry = other.telemetry;
         }

@@ -109,6 +109,29 @@ async fn start_minecraft_server_actor<T>(
             }
         };
 
+        // Check if the server response has a disconnect message (upstream unreachable)
+        if let Some(ref disconnect_msg) = request.disconnect_message {
+            debug!(
+                log_type = LogType::TcpConnection.as_str(),
+                "Upstream server unreachable, sending disconnect message to client: {}", disconnect_msg
+            );
+            
+            // Send disconnect message to client
+            if actor.is_login {
+                if client_sender
+                    .send(MinecraftCommunication::DisconnectWithMessage(disconnect_msg.clone()))
+                    .await
+                    .is_err()
+                {
+                    debug!(log_type = LogType::TcpConnection.as_str(), "Client channel already closed");
+                }
+            }
+            
+            actor.server_receiver.close();
+            debug!(log_type = LogType::TcpConnection.as_str(), "Shutting down Minecraft Server Actor due to unreachable upstream");
+            return;
+        }
+
         actor.server_request = Some(request);
 
         if actor.server_request.is_some() {

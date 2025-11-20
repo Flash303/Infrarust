@@ -36,6 +36,8 @@ pub struct ServerResponse {
     pub proxy_mode: ProxyModeEnum,
     pub proxied_domain: Option<String>,
     pub initial_config: Arc<ServerConfig>,
+    /// Disconnect message to send to the client when upstream is unreachable
+    pub disconnect_message: Option<String>,
 }
 
 impl Default for ServerResponse {
@@ -49,6 +51,7 @@ impl Default for ServerResponse {
             proxy_mode: ProxyModeEnum::default(),
             proxied_domain: None,
             initial_config: Arc::new(ServerConfig::default()),
+            disconnect_message: None,
         }
     }
 }

@@ -174,6 +174,7 @@ fn create_server_response(
         proxy_mode: ProxyModeEnum::Status,
         proxied_domain: Some(domain),
         initial_config: server,
+        disconnect_message: None,
     }
 }
 fn create_default_motd(text: String) -> MotdConfig {

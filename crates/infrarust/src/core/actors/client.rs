@@ -99,23 +99,49 @@ async fn start_minecraft_client_actor<T>(
                 actor.handle_supervisor_message(msg);
             }
             Some(msg) = actor.client_receiver.recv() => {
-                if let MinecraftCommunication::Shutdown = msg {
-                     shutdown_flag.store(true, Ordering::SeqCst);
-                     actor.client_receiver.close();
-                     if let Err(e) = actor.conn.close().await {
-                         error!("Error closing client connection during shutdown: {:?}", e);
-                     }
-                     break;
-                }
-
-                match proxy_mode.handle_internal_client(msg, &mut actor).await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!("Error handling internal client message: {:?}", e);
+                match msg {
+                    MinecraftCommunication::Shutdown => {
                         shutdown_flag.store(true, Ordering::SeqCst);
+                        actor.client_receiver.close();
+                        if let Err(e) = actor.conn.close().await {
+                            error!("Error closing client connection during shutdown: {:?}", e);
+                        }
                         break;
                     }
-                };
+                    // Handle disconnect with custom message when upstream is unreachable
+                    MinecraftCommunication::DisconnectWithMessage(message) => {
+                        debug!(
+                            log_type = LogType::TcpConnection.as_str(),
+                            "Sending disconnect message to client: {}", message
+                        );
+                        
+                        // Send the disconnect packet to the client
+                        let disconnect_packet = create_disconnect_packet(&message);
+                        if let Err(e) = actor.conn.write_packet(&disconnect_packet).await {
+                            error!(
+                                log_type = LogType::TcpConnection.as_str(),
+                                "Failed to send disconnect packet: {:?}", e
+                            );
+                        }
+                        
+                        shutdown_flag.store(true, Ordering::SeqCst);
+                        actor.client_receiver.close();
+                        if let Err(e) = actor.conn.close().await {
+                            error!("Error closing client connection after disconnect: {:?}", e);
+                        }
+                        break;
+                    }
+                    other_msg => {
+                        match proxy_mode.handle_internal_client(other_msg, &mut actor).await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error!("Error handling internal client message: {:?}", e);
+                                shutdown_flag.store(true, Ordering::SeqCst);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             read_result = actor.conn.read() => {
                 match read_result {
@@ -247,4 +273,38 @@ impl MinecraftClientHandler {
             std::io::Error::new(std::io::ErrorKind::Other, "No peer address available")
         })
     }
+}
+
+/// Creates a disconnect packet with a custom message for unreachable upstream servers.
+/// This function builds a ClientBoundDisconnect packet that can be sent to clients
+/// when the upstream target is unreachable during login.
+fn create_disconnect_packet(message: &str) -> crate::network::packet::Packet {
+    use bytes::BufMut;
+    use infrarust_protocol::types::ProtocolWrite;
+    use infrarust_protocol::minecraft::java::login::{ClientBoundDisconnect, CLIENTBOUND_DISCONNECT_ID};
+    
+    let disconnect = ClientBoundDisconnect::new(message.to_string());
+    
+    // Write the disconnect packet data to a Vec first
+    let mut buffer = Vec::new();
+    let _ = disconnect.write_to(&mut buffer);
+    
+    // Convert Vec to BytesMut
+    let data = bytes::BytesMut::from(buffer.as_slice());
+    
+    // Build the packet with the disconnect ID
+    crate::network::packet::PacketBuilder::new()
+        .id(CLIENTBOUND_DISCONNECT_ID)
+        .data(data)
+        .build()
+        .unwrap_or_else(|_| {
+            // Fallback to a basic packet if building fails
+            crate::network::packet::Packet {
+                id: CLIENTBOUND_DISCONNECT_ID,
+                data: bytes::BytesMut::new(),
+                compression: infrarust_protocol::packet::CompressionState::Disabled,
+                encryption: infrarust_protocol::packet::EncryptionState::Disabled,
+                protocol_version: infrarust_protocol::version::Version::V1_20_2,
+            }
+        })
 }
