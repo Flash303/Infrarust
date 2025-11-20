@@ -74,6 +74,7 @@ motds:
     favicon: "data:image/png;base64,..." # Server icon (optional)
   unreachable:              # MOTD for unreachable servers
     # Same options as 'unknown'
+  unreachable_disconnect: "Server is currently unreachable. Please try again later."  # Message sent when upstream is unreachable during login
 ```
 
 ## Server Configuration (proxies/*.yml)
@@ -184,15 +185,56 @@ telemetry:
 
 ### MOTD Configuration
 
-Configure server list display:
+Configure server list display and disconnect messages:
 
 ```yaml
-motd:
-  version: "1.20.1"        # Protocol version to display
-  max_players: 100         # Maximum player count
-  online_players: 0        # Current player count
-  text: "Text"      # Server description
-  favicon: "base64..."     # Server icon (base64 encoded PNG)
+motds:
+  # Status response configuration
+  online:                    # MOTD when server is online
+    version: "1.20.1"        # Protocol version to display
+    max_players: 100         # Maximum player count
+    online_players: 0        # Current player count
+    text: "Server Online"    # Server description
+    favicon: "base64..."     # Server icon (base64 encoded PNG)
+  
+  unreachable:               # MOTD when server is unreachable
+    version: "1.20.1"
+    max_players: 0
+    online_players: 0
+    text: "Server Offline"
+  
+  # Disconnect message sent when upstream is unreachable during login
+  # Supports Minecraft formatting codes (e.g., §c for red, §l for bold)
+  unreachable_disconnect: "§cConnection Failed§r\n§7The server is currently offline."
+```
+
+#### Custom Disconnect Messages
+
+When a player attempts to connect but the upstream server is unreachable, Infrarust sends a disconnect message to provide clear feedback. This message is fully customizable and supports Minecraft formatting codes.
+
+**Benefits:**
+- Improved user experience with clear communication
+- Reduced support requests from confused players
+- Customizable per-server or globally
+
+**Configuration Hierarchy:**
+1. Server-specific `motds.unreachable_disconnect` (highest priority)
+2. Global `motds.unreachable_disconnect` in main config
+3. Default message: "Server is currently unreachable. Please try again later."
+
+**Formatting Codes:**
+You can use Minecraft formatting codes to style your disconnect messages:
+- `§c` - Red
+- `§a` - Green
+- `§e` - Yellow
+- `§l` - Bold
+- `§r` - Reset formatting
+- `\n` - New line
+
+**Example:**
+```yaml
+motds:
+  unreachable_disconnect: "§c§lConnection Failed§r\n\n§7The server is temporarily unavailable.\n§7Please try again in a few minutes.\n\n§eContact: support@example.com"
 ```
 
 ### Cache Configuration

@@ -84,6 +84,30 @@ domains:
 addresses:
   - "localhost:25566"
 proxyMode: "passthrough" # Options: passthrough, client_only, offline, server_only
+
+# Optional: Custom disconnect message when upstream is unreachable
+motds:
+  unreachable_disconnect: "Server is temporarily unavailable. Please try again later."
+```
+
+### Custom Disconnect Messages
+
+When an upstream server is unreachable during login, Infrarust can send a configurable disconnect message to the client instead of a generic error. This improves user communication and reduces support overhead.
+
+Configure disconnect messages globally in `config.yaml`:
+```yaml
+motds:
+  unreachable_disconnect: "The server is currently unreachable. Please try again later."
+```
+
+Or per-server in your proxy configuration:
+```yaml
+domains:
+  - "game.example.com"
+addresses:
+  - "backend:25565"
+motds:
+  unreachable_disconnect: "§cConnection Failed§r\n§7This server is currently offline."
 ```
 
 ## Documentation
